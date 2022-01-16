@@ -5,6 +5,7 @@
         <data xmlns="http://www.netbeans.org/ns/j2se-project/3">
             <name>Tasmota NSPanel Display Firmware Upload</name>
             <source-roots>
+                <root id="src.berry.dir" name="Berry Scripts"/>
                 <root id="src.dir"/>
             </source-roots>
             <test-roots>
