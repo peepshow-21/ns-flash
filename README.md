@@ -4,7 +4,7 @@
 
 Copy the `nextion.bs` file to your device with the File System Manager. Change the `autoexec.bs` to load that instead of the `nspanel.bs` if you were using that with the stock screen firmware.
 
-https://github.com/peepshow-21/openhab/blob/main/nextion.be
+https://github.com/peepshow-21/ns-flash/blob/master/berry/nextion.be
 
 ![image](https://user-images.githubusercontent.com/42150988/149680209-554a098b-6fa9-4ca2-be68-923ad94c47d9.png)
 
