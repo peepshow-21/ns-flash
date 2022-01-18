@@ -4,7 +4,7 @@
 
 Copy the `nextion.bs` file to your device with the File System Manager. Change the `autoexec.bs` to load that instead of the `nspanel.bs` if you were using that with the stock screen firmware.
 
-https://github.com/peepshow-21/openhab/blob/main/nextion.be
+https://github.com/peepshow-21/ns-flash/blob/master/berry/nextion.be
 
 ![image](https://user-images.githubusercontent.com/42150988/149680209-554a098b-6fa9-4ca2-be68-923ad94c47d9.png)
 
@@ -15,7 +15,7 @@ Download the jar file and run it with an installed java runtime on your windows 
 
 ![image](https://user-images.githubusercontent.com/42150988/149680122-1b876b0d-ac0a-40a3-bfda-714a1c7ce76d.png)
 
-https://github.com/peepshow-21/openhab/blob/main/Tasmota_NSPanel_Display_Firmware_Upload.jar
+https://github.com/peepshow-21/ns-flash/releases/download/initial-release/ns-flash.jar
 
 Browse to the TFT file you want to upload.
 Select the folder you want the chunk files to to. It's best to make this a folder that is seen by your local http server. But you can put them anyway and move the after.
