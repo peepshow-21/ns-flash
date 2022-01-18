@@ -37,7 +37,7 @@ public class MakeChunksFrame extends JFrame {
         try {
             initComponents();        
             setLocationRelativeTo(null);
-            propsFile = new File(System.getProperty("home.dir"),"nextion.properties");
+            propsFile = new File(System.getProperty("user.home"),"nextion.properties");
             props = new Properties();
             if (propsFile.exists()) {
                 props.load(new FileReader(propsFile));                
