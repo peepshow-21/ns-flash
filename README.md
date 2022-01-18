@@ -15,7 +15,7 @@ Download the jar file and run it with an installed java runtime on your windows 
 
 ![image](https://user-images.githubusercontent.com/42150988/149680122-1b876b0d-ac0a-40a3-bfda-714a1c7ce76d.png)
 
-https://github.com/peepshow-21/ns-flash/releases/download/v0.0.3-alpha/ns-flash.jar
+https://github.com/peepshow-21/ns-flash/releases/download/v.0.0.4-alpha/ns-flash.jar
 
 Browse to the TFT file you want to upload.
 Select the folder you want the chunk files to to. It's best to make this a folder that is seen by your local http server. But you can put them anyway and move the after.
