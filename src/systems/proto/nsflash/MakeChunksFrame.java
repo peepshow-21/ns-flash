@@ -188,6 +188,9 @@ public class MakeChunksFrame extends JFrame {
 
     private void findFileBNActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_findFileBNActionPerformed
         JFileChooser chooser = new JFileChooser();
+        if (tftFile!=null) {
+            chooser.setCurrentDirectory(tftFile.getParentFile());
+        }
         int stat = chooser.showOpenDialog(this);
         tftFile = chooser.getSelectedFile();
         fileTF.setText(tftFile.getAbsolutePath());                
@@ -201,6 +204,9 @@ public class MakeChunksFrame extends JFrame {
 
     private void findDirBNActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_findDirBNActionPerformed
         JFileChooser chooser = new JFileChooser();
+        if (chunkDir!=null) {
+            chooser.setCurrentDirectory(chunkDir);
+        }
         chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
         int stat = chooser.showOpenDialog(this);
         chunkDir = chooser.getSelectedFile();
