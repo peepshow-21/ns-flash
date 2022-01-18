@@ -192,8 +192,10 @@ public class MakeChunksFrame extends JFrame {
             chooser.setCurrentDirectory(tftFile.getParentFile());
         }
         int stat = chooser.showOpenDialog(this);
-        tftFile = chooser.getSelectedFile();
-        fileTF.setText(tftFile.getAbsolutePath());                
+        if (stat==JFileChooser.APPROVE_OPTION) {
+            tftFile = chooser.getSelectedFile();
+            fileTF.setText(tftFile.getAbsolutePath());                
+        }
     }//GEN-LAST:event_findFileBNActionPerformed
 
     private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
@@ -209,8 +211,10 @@ public class MakeChunksFrame extends JFrame {
         }
         chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
         int stat = chooser.showOpenDialog(this);
-        chunkDir = chooser.getSelectedFile();
-        dirTF.setText(chunkDir.getAbsolutePath());                
+        if (stat==JFileChooser.APPROVE_OPTION) {
+            chunkDir = chooser.getSelectedFile();
+            dirTF.setText(chunkDir.getAbsolutePath());                
+        }
     }//GEN-LAST:event_findDirBNActionPerformed
 
     /**
