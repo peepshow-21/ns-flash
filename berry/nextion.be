@@ -1,5 +1,5 @@
 
-# Sonoff NSPanel Tasmota (Nextion with Flashing) driver v0.01 | code by peepshow-21
+# Sonoff NSPanel Tasmota (Nextion with Flashing) driver v0.02 | code by peepshow-21
 # based on;
 # Sonoff NSPanel Tasmota driver v0.47 | code by blakadder and s-hadinger
 class Nextion : Driver
@@ -90,6 +90,7 @@ class Nextion : Driver
                 log(string.format("NSP: Received Raw = %s",str(msg)), 3)
                 if (self.flash_mode==1)
                     var str = msg[0..-4].asstring()
+                    log(str, 3)
                     if (string.find(str,"comok 2")==0) 
                         self.sendnx(string.format("whmi-wri %d,115200,res0",self.flash_size))
                     elif (size(msg)==1 && msg[0]==0x05)
@@ -110,8 +111,11 @@ class Nextion : Driver
                 else
                     if msg == bytes('000000FFFFFF88FFFFFF')
                         self.screeninit()
+                    elif msg[0]==0x4A
+                        var jm = string.format("{\"NSPanel\":{\"JSON\":\"%s\"}}",msg.asstring())
+                        tasmota.publish_result(jm, "RESULT")        
                     else
-                        var jm = string.format("{\"NSPanel\":{\"Nextion\":\"%s\"}}",msg[0..-4].asstring())
+                        var jm = string.format("{\"NSPanel\":{\"Nextion\":\"%s\"}}",str(msg[0..-4]))
                         tasmota.publish_result(jm, "RESULT")        
                     end       
                 end
