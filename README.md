@@ -38,5 +38,26 @@ That's it. then just wait. The display should show install progress.
 
 When it's complete it will just reboot.
 
+### Data Exchange
+
+If you set 'Send Component ID' in the Nextion editor you will get the native data back, which will show like this
+```
+13:03:59.381 MQT: tele/nspanel/RESULT = {"NSPanel":{"Nextion":"bytes('65010700')"}}
+```
+
+However, you can want to send more usful things back then using the `prints` method in nextion is maybe better;
+
+![image](https://user-images.githubusercontent.com/42150988/150136985-9d1464fc-0f0a-4d53-887f-261d53ded13a.png)
+
+which will appear like this;
+```
+13:03:58.580 MQT: tele/nspanel/RESULT = {"NSPanel":{"JSON":"J{hi, x}AAAABBBB"}}
+```
+
+Note the `J` at start which trigger this!!
+
+
+
+
 
 
