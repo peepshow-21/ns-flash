@@ -40,12 +40,12 @@ When it's complete it will just reboot.
 
 ### Data Exchange
 
-If you even 'Send Component ID' in the Nextion editor you will get the native data back, which will show like this
+If you set 'Send Component ID' in the Nextion editor you will get the native data back, which will show like this
 ```
 13:03:59.381 MQT: tele/nspanel/RESULT = {"NSPanel":{"Nextion":"bytes('65010700')"}}
 ```
 
-However, you can send mor usful things back the using the prints method in nextion;
+However, you can want to send more usful things back then using the `prints` method in nextion is maybe better;
 
 ![image](https://user-images.githubusercontent.com/42150988/150136985-9d1464fc-0f0a-4d53-887f-261d53ded13a.png)
 
