@@ -112,7 +112,7 @@ class Nextion : Driver
                     if msg == bytes('000000FFFFFF88FFFFFF')
                         self.screeninit()
                     elif msg[0]==0x4A
-                        var jm = string.format("{\"NSPanel\":{\"JSON\":\"%s\"}}",msg.asstring())
+                        var jm = string.format("{\"NSPanel\":{\"JSON\":\"%s\"}}",msg[1..-1].asstring())
                         tasmota.publish_result(jm, "RESULT")        
                     else
                         var jm = string.format("{\"NSPanel\":{\"Nextion\":\"%s\"}}",str(msg[0..-4]))
