@@ -111,9 +111,11 @@ class Nextion : Driver
                 else
                     if msg == bytes('000000FFFFFF88FFFFFF')
                         self.screeninit()
-                    elif msg[0]==0x4A
+                    elif msg[0]==0x4A # J
                         var jm = string.format("{\"NSPanel\":{\"JSON\":\"%s\"}}",msg[1..-1].asstring())
                         tasmota.publish_result(jm, "RESULT")        
+                    elif msg[0]==0x54 # T
+                        tasmota.cmd("buzzer 1,1")
                     else
                         var jm = string.format("{\"NSPanel\":{\"Nextion\":\"%s\"}}",str(msg[0..-4]))
                         tasmota.publish_result(jm, "RESULT")        
