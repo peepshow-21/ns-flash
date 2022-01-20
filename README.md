@@ -51,7 +51,7 @@ However, you can want to send more usful things back then using the `prints` met
 
 which will appear like this;
 ```
-13:03:58.580 MQT: tele/nspanel/RESULT = {"NSPanel":{"JSON":"J{hi, x}AAAABBBB"}}
+13:23:11.214 MQT: tele/nspanel/RESULT = {"NSPanel":{"JSON":"{hi, x}AAAABBBB"}}
 ```
 
 Note the `J` at start which trigger this!!
