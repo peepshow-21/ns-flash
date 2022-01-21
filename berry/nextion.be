@@ -1,10 +1,12 @@
 
-# Sonoff NSPanel Tasmota (Nextion with Flashing) driver v0.02 | code by peepshow-21
+# Sonoff NSPanel Tasmota (Nextion with Flashing) driver v0.03 | code by peepshow-21
 # based on;
 # Sonoff NSPanel Tasmota driver v0.47 | code by blakadder and s-hadinger
+
 class Nextion : Driver
 
     static CHUNK_FILE = "nextion"
+    static header = "PS"
 
     var flash_mode
     var ser
@@ -13,6 +15,34 @@ class Nextion : Driver
     var chunk
     var tot_read
     var last_per
+
+    def crc16(data, poly)
+      if !poly  poly = 0xA001 end
+      # CRC-16 MODBUS HASHING ALGORITHM
+      var crc = 0xFFFF
+      for i:0..size(data)-1
+        crc = crc ^ data[i]
+        for j:0..7
+          if crc & 1
+            crc = (crc >> 1) ^ poly
+          else
+            crc = crc >> 1
+          end
+        end
+      end
+      return crc
+    end
+
+    def encode(payload)
+      var b = bytes()
+      b += self.header
+      b.add(nsp_type)       # add a single byte
+      b.add(size(payload), 2)   # add size as 2 bytes, little endian
+      b += bytes().fromstring(payload)
+      var msg_crc = self.crc16(b)
+      b.add(msg_crc, 2)       # crc 2 bytes, little endian
+      return b
+    end
 
     def encodenx(payload)
         var b = bytes().fromstring(payload)
