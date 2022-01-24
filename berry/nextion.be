@@ -16,6 +16,7 @@ class Nextion : Driver
     var chunk
     var tot_read
     var last_per
+    var flash_url
 
     def crc16(data, poly)
       if !poly  poly = 0xA001 end
@@ -185,18 +186,39 @@ class Nextion : Driver
         self.sendnx('recmod=0')
         self.sendnx('recmod=0')
         self.sendnx("connect")        
-        self.flash_mode = 1
+        var tcp = tcpclient()
+        tcp.connect(flash_url, 8080)
+        var count = 0
+        log("wait for data ...")
+        while tcp.available()<=0 && count<3
+            log("retry")
+           tasmota.delay(100)
+           count++
+        end
+        if tcp.available()<=0
+            log("can't read flash file")
+            return
+        end
+        self.flash_size = 0
+        var r = 1
+        log("sizing file ...")
+        while r>0 
+            var b = tcp.bytes()
+            r = b.size()
+            self.flash_size += r
+            log("read "+str(r))
+        end
+        log("total size "+str(self.flash_size))
+
+        
+        r = tcp.read()
+        tcp.close()
+        print(r)        self.flash_mode = 1
     end
     
     def start_flash(url)
+        self.flash_url = url
         self.last_per = -1
-        self.chunk_url = url
-        import string
-        var file = (string.format("%s/%s.txt",self.chunk_url,self.CHUNK_FILE))
-        var s = self.getPage(file)
-        self.flash_size = int(s)
-        self.tot_read = 0
-        self.chunk = 0
         #self.begin_file_flash()
         self.begin_nextion_flash()
     end
