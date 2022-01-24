@@ -5,7 +5,7 @@
 
 class Nextion : Driver
 
-    static VERSION = "v1.1.0-beta"
+    static VERSION = "v0.1.2-beta"
     static CHUNK_FILE = "nextion"
     static header = bytes().fromstring("PS")
 
@@ -122,7 +122,7 @@ class Nextion : Driver
 
     def screeninit()
         log("NSP: Screen Initialized") 
-        self.sendnx("berry.txt=\""+self.VERSION+"\"")
+        self.sendnx("berry_ver.txt=\"berry: "+self.VERSION+"\"")
     end
 
     def every_100ms()
