@@ -1,5 +1,9 @@
 ## Tasmota and Sonoff NSPanel
 
+## Latest release will be here
+
+https://github.com/peepshow-21/ns-flash/releases
+
 ### Quick early version of TFT custom screen firmware upload
 
 Copy the `nextion.bs` file to your device with the File System Manager. Change the `autoexec.bs` to load that instead of the `nspanel.bs` if you were using that with the stock screen firmware.
@@ -59,9 +63,8 @@ Note the `J` at start which trigger this!!  <---- wrong! not J needed, default i
 
 ### UPDATE - new version with example firmware!
 
-Check here;
-https://github.com/peepshow-21/ns-flash/releases/tag/v0.1.0-alpha
-
+Check here for latest;
+https://github.com/peepshow-21/ns-flash/releases
 
 
 
