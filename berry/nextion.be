@@ -1,10 +1,12 @@
 
-# Sonoff NSPanel Tasmota (Nextion with Flashing) driver v0.02 | code by peepshow-21
+# Sonoff NSPanel Tasmota (Nextion with Flashing) driver v0.03 | code by peepshow-21
 # based on;
 # Sonoff NSPanel Tasmota driver v0.47 | code by blakadder and s-hadinger
+
 class Nextion : Driver
 
     static CHUNK_FILE = "nextion"
+    static header = bytes().fromstring("PS")
 
     var flash_mode
     var ser
@@ -13,6 +15,35 @@ class Nextion : Driver
     var chunk
     var tot_read
     var last_per
+
+    def crc16(data, poly)
+      if !poly  poly = 0xA001 end
+      # CRC-16 MODBUS HASHING ALGORITHM
+      var crc = 0xFFFF
+      for i:0..size(data)-1
+        crc = crc ^ data[i]
+        for j:0..7
+          if crc & 1
+            crc = (crc >> 1) ^ poly
+          else
+            crc = crc >> 1
+          end
+        end
+      end
+      return crc
+    end
+
+    def encode(payload)
+      var b = bytes()
+      b += self.header
+      var nsp_type = 0 # not used
+      b.add(nsp_type)       # add a single byte
+      b.add(size(payload), 2)   # add size as 2 bytes, little endian
+      b += bytes().fromstring(payload)
+      var msg_crc = self.crc16(b)
+      b.add(msg_crc, 2)       # crc 2 bytes, little endian
+      return b
+    end
 
     def encodenx(payload)
         var b = bytes().fromstring(payload)
@@ -24,7 +55,17 @@ class Nextion : Driver
         import string
         var payload_bin = self.encodenx(payload)
         self.ser.write(payload_bin)
-        log(string.format("NSP: Nextion command sent = %s",str(payload_bin)), 3)
+        log(string.format("NSP: Nextion command sent = %s",str(payload_bin)), 3)       
+    end
+
+    def send(payload)
+        var payload_bin = self.encode(payload)
+        if self.flash_mode==1
+            log("NSP: skipped command becuase still flashing", 3)
+        else 
+            self.ser.write(payload_bin)
+            log("NSP: payload sent = " + str(payload_bin), 3)
+        end
     end
 
     def getPage(url)
@@ -40,7 +81,7 @@ class Nextion : Driver
             else
                 s = nil
                 retry = retry + 1
-                log("NSP: HTTP retry reuired")
+                log("NSP: HTTP retry required")
             end
             wc.close()
         end
@@ -80,6 +121,7 @@ class Nextion : Driver
 
     def screeninit()
         log("NSP: Screen Initialized") 
+        tasmota.publish_result("{\"Init\": \"true\"", "RESULT")        
     end
 
     def every_100ms()
@@ -100,7 +142,7 @@ class Nextion : Driver
                         var per = (self.tot_read*100)/self.flash_size
                         if (self.last_per!=per) 
                             self.last_per = per
-                            tasmota.publish_result(string.format("{\"NSPanel\":{\"Flashing\":{\"complete\": %d}}}",per), "RESULT") 
+                            tasmota.publish_result(string.format("{\"Flashing\":{\"complete\": %d}}",per), "RESULT") 
                         end
                         if (self.tot_read==self.flash_size)
                             log("NSP: Flashing complete")
@@ -111,13 +153,13 @@ class Nextion : Driver
                 else
                     if msg == bytes('000000FFFFFF88FFFFFF')
                         self.screeninit()
-                    elif msg[0]==0x4A # J
-                        var jm = string.format("{\"NSPanel\":{\"JSON\":\"%s\"}}",msg[1..-1].asstring())
+                    elif msg[0]==0x7B
+                        var jm = string.format("{\"json\":%s}",msg[0..-1].asstring())
                         tasmota.publish_result(jm, "RESULT")        
-                    elif msg[0]==0x54 # T
+                    elif msg[0]==0x07 # T
                         tasmota.cmd("buzzer 1,1")
                     else
-                        var jm = string.format("{\"NSPanel\":{\"Nextion\":\"%s\"}}",str(msg[0..-4]))
+                        var jm = string.format("{\"nextion\":\"%s\"}",str(msg[0..-4]))
                         tasmota.publish_result(jm, "RESULT")        
                     end       
                 end
@@ -126,6 +168,7 @@ class Nextion : Driver
     end      
 
     def begin_file_flash()
+        self.flash_mode = 1
         var f = open("test.bin","w")
         f.close()
         while self.tot_read<self.flash_size
@@ -137,12 +180,15 @@ class Nextion : Driver
     end
 
     def begin_nextion_flash()
+        self.sendnx('DRAKJHSUYDGBNCJHGJKSHBDN')
+        self.sendnx('recmod=0')
+        self.sendnx('recmod=0')
         self.sendnx("connect")        
+        self.flash_mode = 1
     end
     
     def start_flash(url)
         self.last_per = -1
-        self.flash_mode = 1
         self.chunk_url = url
         import string
         var file = (string.format("%s/%s.txt",self.chunk_url,self.CHUNK_FILE))
@@ -152,6 +198,29 @@ class Nextion : Driver
         self.chunk = 0
         #self.begin_file_flash()
         self.begin_nextion_flash()
+    end
+
+    def set_power()
+      var ps = tasmota.get_power()
+      for i:0..1
+        if ps[i] == true
+          ps[i] = "1"
+        else 
+          ps[i] = "0"
+        end
+      end
+      var json_payload = '{ "switches": { "switch1": ' + ps[0] + ' , "switch2": ' + ps[1] +  ' } }'
+      log('NSP: Switch state updated with ' + json_payload)
+      self.send(json_payload)
+    end
+
+    def set_clock()
+      var now = tasmota.rtc()
+      var time_raw = now['local']
+      var nsp_time = tasmota.time_dump(time_raw)
+      var time_payload = '{ "clock": { "date":' + str(nsp_time['day']) + ',"month":' + str(nsp_time['month']) + ',"year":' + str(nsp_time['year']) + ',"weekday":' + str(nsp_time['weekday']) + ',"hour":' + str(nsp_time['hour']) + ',"min":' + str(nsp_time['min']) + ' } }'
+      log('NSP: Time and date synced with ' + time_payload, 3)
+      self.send(time_payload)
     end
 
 end
@@ -176,4 +245,18 @@ def send_cmd(cmd, idx, payload, payload_json)
 end
 
 tasmota.add_cmd('Nextion', send_cmd)
+
+def send_cmd2(cmd, idx, payload, payload_json)
+    nextion.send(payload)
+    tasmota.resp_cmnd_done()
+end
+
+tasmota.add_cmd('Screen', send_cmd2)
+
+tasmota.add_rule("power1#state", /-> nextion.set_power())
+tasmota.add_rule("power2#state", /-> nextion.set_power())
+tasmota.cmd("Rule3 1") # needed until Berry bug fixed
+tasmota.add_rule("Time#Minute", /-> nextion.set_clock())
+tasmota.cmd("State")
+
 

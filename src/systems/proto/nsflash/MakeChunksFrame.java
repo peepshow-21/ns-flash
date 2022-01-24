@@ -83,6 +83,8 @@ public class MakeChunksFrame extends JFrame {
             props.setProperty(PROP_FILE, tftFile.getAbsolutePath());
             props.setProperty(PROP_DIR, chunkDir.getAbsolutePath());
             props.store(new FileWriter(propsFile), null);
+            outFile.close();
+            is.close();
         } catch (Exception ex) {
             Logger.getLogger(MakeChunksFrame.class.getName()).log(Level.SEVERE, null, ex);
         }
