@@ -54,8 +54,13 @@ which will appear like this;
 13:23:11.214 MQT: tele/nspanel/RESULT = {"NSPanel":{"JSON":"{hi, x}AAAABBBB"}}
 ```
 
-Note the `J` at start which trigger this!!
+Note the `J` at start which trigger this!!  <---- wrong! not J needed, default is picked up it starts with '{'
 
+
+### UPDATE - new version with example firmware!
+
+Check here;
+https://github.com/peepshow-21/ns-flash/releases/tag/v0.1.0-alpha
 
 
 
