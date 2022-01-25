@@ -34,24 +34,70 @@ class TCPTest
 
     end
 
-    def check_int(max)
+    def readbytes()
+
+        for retry: 1..3
+            if self.tcp.available()>0
+                tasmota.gc()
+                tasmota.yield()
+                return self.tcp.readbytes()
+            end
+            tasmota.delay(100)
+        end
+        return nil
+
+    end
+
+    def send_parts()
 
         self.openUrl()
 
-        var tot = 0;
-        for i: 1..max
-            var a = self.tcp.available()
-            if a>0
-                var b = self.tcp.readbytes()
-                print ("read", b.size())
-                tot += b.size()
-                tasmota.yield()
-            else
-                print ("not available: ", a)
-                tasmota.delay(100)
+        var max = 4096
+        var buff = bytes()
+        var w_buff
+        var complete = false
+        var count = 0
+        while !complete
+            while size(buff)<max && !complete
+                var b = self.readbytes()
+                if b!=nil
+                    buff += b
+                else
+                    complete = true
+                end
+            end
+            if size(buff)>max
+                w_buff = buff[0..max-1]
+                buff = buff[max..]
+            else 
+                w_buff = buff
+                buff = bytes()
+            end
+            if size(w_buff)>0
+                print("part",size(w_buff))
+                count += size(w_buff)
             end
         end
-        print("done: ", tot)
+
+        print("count",count)
+
+        self.tcp.close()
+
+    end
+                
+    def check_int(max)
+
+        self.openUrl()
+        
+        var count=0
+        var b = bytes()
+        while b!=nil
+            b = self.readbytes()
+            if (b!=nil)
+                count+=size(b)
+            end
+        end
+        print("size",count)
 
         self.tcp.close()
 
@@ -68,7 +114,7 @@ class TCPTest
 end
  
 tcptest = TCPTest()
-tcptest.check(100)
+tcptest.send_parts()
 
 
 
