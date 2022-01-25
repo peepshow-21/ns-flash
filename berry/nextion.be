@@ -1,10 +1,11 @@
 
-# Sonoff NSPanel Tasmota (Nextion with Flashing) driver v0.03 | code by peepshow-21
+# Sonoff NSPanel Tasmota (Nextion with Flashing) driver | code by peepshow-21
 # based on;
 # Sonoff NSPanel Tasmota driver v0.47 | code by blakadder and s-hadinger
 
 class Nextion : Driver
 
+    static VERSION = "v0.1.2-beta"
     static CHUNK_FILE = "nextion"
     static header = bytes().fromstring("PS")
 
@@ -121,7 +122,7 @@ class Nextion : Driver
 
     def screeninit()
         log("NSP: Screen Initialized") 
-        tasmota.publish_result("{\"Init\": \"true\"", "RESULT")        
+        self.sendnx("berry_ver.txt=\"berry: "+self.VERSION+"\"")
     end
 
     def every_100ms()
