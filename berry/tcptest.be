@@ -8,8 +8,10 @@ class TCPTest
     var flash_mode
     var flash_complete
     var flash_buff
-    var really_read
+
+    var really_read    
     var tcp
+    var loop_max
 
     def open_url()
 
@@ -52,6 +54,7 @@ class TCPTest
             end
             tasmota.delay(100*retry)
         end
+        print("nothing to read, eof?")
         return nil
 
     end
@@ -87,7 +90,7 @@ class TCPTest
                 self.flash_count+=size(b)
                 #print("written",size(b))
                 #  write_block
-                tasmota.delay(100)
+                tasmota.delay(50)
                 tasmota.gc()
                 tasmota.yield()
             else 
@@ -96,9 +99,9 @@ class TCPTest
                 print("zero bytes?")
             end
             loop += 1
-            if self.flash_count>500000 #1332918
+            if loop>self.loop_max # test case fudge
                 print("flash complete, wrote", self.flash_count, self.really_read)
-                self.flash_count = self.flash_size
+                self.flash_count = self.flash_size # force exit in test
             end
         end
         self.flash_mode = 0;
@@ -114,8 +117,9 @@ class TCPTest
     end
 
         
-    def flash()
+    def flash(i)
 
+        self.loop_max = i
         self.really_read = 0
         self.flash_mode = 1
         self.flash_complete = false
@@ -140,7 +144,8 @@ class TCPTest
 end
  
 tcptest = TCPTest()
-tcptest.flash()
+
+tcptest.flash(50)
 
 
 
