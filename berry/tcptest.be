@@ -100,7 +100,7 @@ class TCPTest
             end
             loop += 1
             if loop>self.loop_max # test case fudge
-                print("flash complete - forced test exit, should have done", self.flash_count, "really did", self.really_read)
+                print("flash complete - forced test exit, should have done", self.flash_size, "really did", self.really_read)
                 self.flash_count = self.flash_size # force exit in test
             end
         end
