@@ -94,18 +94,18 @@ class TCPTest
                 tasmota.gc()
                 tasmota.yield()
             else 
-                print("flash complete, wrote", self.flash_count)
-                self.flash_count = self.flash_size
+                print("flash complete - failed, wrote", self.flash_count)
+                self.flash_count = self.flash_size # force exit
                 print("zero bytes?")
             end
             loop += 1
             if loop>self.loop_max # test case fudge
-                print("flash complete, wrote", self.flash_count, self.really_read)
+                print("flash complete - forced test exit, should have done", self.flash_count, "really did", self.really_read)
                 self.flash_count = self.flash_size # force exit in test
             end
         end
         self.flash_mode = 0;
-        print("flash complete, wrote", self.flash_count,tasmota.gc())
+        print("flash complete, wrote", self.flash_count, "gc()", tasmota.gc())
 
     end
                     
