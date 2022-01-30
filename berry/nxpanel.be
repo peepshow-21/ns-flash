@@ -17,6 +17,21 @@ class Nextion : Driver
     var tot_read
     var last_per
 
+    def split_55(b)
+      var ret = []
+      var s = size(b)   
+      var i = s-1   # start from last
+      while i > 0
+        if b[i] == 0x55 && b[i+1] == 0xAA           
+          ret.push(b[(i+2)..s-1]) # push last msg to list
+          b = b[(0..i-1)]   # write the rest back to b
+        end
+        i -= 1
+      end
+      ret.push(b)
+      return ret
+    end
+
     def crc16(data, poly)
       if !poly  poly = 0xA001 end
       # CRC-16 MODBUS HASHING ALGORITHM
@@ -152,17 +167,21 @@ class Nextion : Driver
                         tasmota.yield()
                     end
                 else
-                    if msg == bytes('000000FFFFFF88FFFFFF')
-                        self.screeninit()
-                    elif msg[0]==0x7B
-                        var jm = string.format("{\"json\":%s}",msg[0..-1].asstring())
-                        tasmota.publish_result(jm, "RESULT")        
-                    elif msg[0]==0x07 # T
-                        tasmota.cmd("buzzer 1,1")
-                    else
-                        var jm = string.format("{\"nextion\":\"%s\"}",str(msg[0..-4]))
-                        tasmota.publish_result(jm, "RESULT")        
-                    end       
+                    var msg_list = self.split_55(msg)
+                    for i:0..size(msg_list)-1
+                        msg = msg_list[i]
+                        if msg == bytes('000000FFFFFF88FFFFFF')
+                            self.screeninit()
+                        elif msg[0]==0x7B # JSON, starting with "{"
+                            var jm = string.format("{\"json\":%s}",msg[0..-1].asstring())
+                            tasmota.publish_result(jm, "RESULT")        
+                        elif msg[0]==0x07 && size(msg)==1 # BELL/Buzzer
+                            tasmota.cmd("buzzer 1,1")
+                        else
+                            var jm = string.format("{\"nextion\":\"%s\"}",str(msg[0..-4]))
+                            tasmota.publish_result(jm, "RESULT")        
+                        end       
+                    end
                 end
             end
         end
@@ -253,6 +272,7 @@ def send_cmd2(cmd, idx, payload, payload_json)
 end
 
 tasmota.add_cmd('Screen', send_cmd2)
+tasmota.add_cmd('NxPanel', send_cmd2)
 
 tasmota.add_rule("power1#state", /-> nextion.set_power())
 tasmota.add_rule("power2#state", /-> nextion.set_power())
