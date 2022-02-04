@@ -5,7 +5,7 @@
 
 class Nextion : Driver
 
-    static VERSION = "v0.1.2-beta"
+    static VERSION = "v1.0.0-beta1"
     static CHUNK_FILE = "nextion"
     static header = bytes().fromstring("PS")
 
@@ -17,19 +17,26 @@ class Nextion : Driver
     var tot_read
     var last_per
 
-    def split_55(b)
-      var ret = []
-      var s = size(b)   
-      var i = s-1   # start from last
-      while i > 0
-        if b[i] == 0x55 && b[i+1] == 0xAA           
-          ret.push(b[(i+2)..s-1]) # push last msg to list
-          b = b[(0..i-1)]   # write the rest back to b
+    def split_msg(b)   
+        import string
+        var ret = []
+        var i = 0
+        while i < size(b)-1
+            if b[i] == 0x55 && b[i+1] == 0xAA
+                if i > 0
+                    var nb = b[0..i-1];
+                    ret.push(nb)
+                end
+                b = b[i+2..]
+                i = 0
+            else
+                i+=1
+            end
         end
-        i -= 1
-      end
-      ret.push(b)
-      return ret
+        if size(b) > 0
+            ret.push(b)
+        end
+        return ret
     end
 
     def crc16(data, poly)
@@ -167,19 +174,21 @@ class Nextion : Driver
                         tasmota.yield()
                     end
                 else
-                    var msg_list = self.split_55(msg)
+                    var msg_list = self.split_msg(msg)
                     for i:0..size(msg_list)-1
                         msg = msg_list[i]
-                        if msg == bytes('000000FFFFFF88FFFFFF')
-                            self.screeninit()
-                        elif msg[0]==0x7B # JSON, starting with "{"
-                            var jm = string.format("{\"json\":%s}",msg[0..-1].asstring())
-                            tasmota.publish_result(jm, "RESULT")        
-                        elif msg[0]==0x07 && size(msg)==1 # BELL/Buzzer
-                            tasmota.cmd("buzzer 1,1")
-                        else
-                            var jm = string.format("{\"nextion\":\"%s\"}",str(msg[0..-4]))
-                            tasmota.publish_result(jm, "RESULT")        
+                        if size(msg) > 0
+                            if msg == bytes('000000FFFFFF88FFFFFF')
+                                self.screeninit()
+                            elif msg[0]==0x7B # JSON, starting with "{"
+                                var jm = string.format("%s",msg[0..-1].asstring())
+                                tasmota.publish_result(jm, "RESULT")        
+                            elif msg[0]==0x07 && size(msg)==1 # BELL/Buzzer
+                                tasmota.cmd("buzzer 1,1")
+                            else
+                                var jm = string.format("{\"nextion\":\"%s\"}",str(msg[0..-4]))
+                                tasmota.publish_result(jm, "RESULT")        
+                            end
                         end       
                     end
                 end
