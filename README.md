@@ -2,7 +2,8 @@
 
 ## Latest release will be here
 
-https://github.com/peepshow-21/ns-flash/releases
+Bottom of this post;
+https://community.openhab.org/t/nxpanel-replacement-firmware-for-sonoff-nspanel/132869?u=m-home
 
 ### Quick early version of TFT custom screen firmware upload
 
