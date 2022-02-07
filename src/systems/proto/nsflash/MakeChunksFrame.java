@@ -178,7 +178,7 @@ public class MakeChunksFrame extends JFrame {
             }
         });
 
-        andre.setText("For Andre");
+        andre.setText("For ilexpl01");
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
