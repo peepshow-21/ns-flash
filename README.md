@@ -26,6 +26,9 @@ Browse to the TFT file you want to upload.
 Select the folder you want the chunk files to to. It's best to make this a folder that is seen by your local http server. But you can put them anyway and move the after.
 Press 'Build'. It will split the TFT into files tamsota can load
 
+Openhab users can use the inbuilt web server, for those that need to install a local IIS to do this, here is a little guide from [Viper-666](https://github.com/viper-666)
+https://github.com/peepshow-21/ns-flash/wiki/How-To-set-up-a-IIS-Webserver-under-Windows
+
 Boot the NSPanel with the new nextion.bs loaded.
 At the console, type;
 
