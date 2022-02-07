@@ -182,7 +182,7 @@
     </Component>
     <Component class="javax.swing.JCheckBox" name="andre">
       <Properties>
-        <Property name="text" type="java.lang.String" value="For Andre"/>
+        <Property name="text" type="java.lang.String" value="For ilexpl01"/>
       </Properties>
     </Component>
   </SubComponents>
