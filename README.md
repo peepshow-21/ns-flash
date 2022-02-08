@@ -68,8 +68,7 @@ Note the `J` at start which trigger this!!  <---- wrong! not J needed, default i
 ### UPDATE - new version with example firmware!
 
 Check here for latest;
-https://github.com/peepshow-21/ns-flash/releases
-
+https://github.com/peepshow-21/ns-flash/tree/master/tft
 
 
 
