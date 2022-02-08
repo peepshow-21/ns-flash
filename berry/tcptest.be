@@ -46,13 +46,15 @@ class TCPTest
 
         for retry: 1..3
             if self.tcp.available()>0
-                tasmota.gc()
-                tasmota.yield()
                 var b = self.tcp.readbytes()
                 self.really_read+=size(b)
+                print("read", size(b), self.really_read)
                 return b
             end
-            tasmota.delay(100*retry)
+            tasmota.gc()
+            tasmota.yield()
+            #tasmota.delay(100*retry)
+            print("retry", retry)
         end
         print("nothing to read, eof?")
         return nil
@@ -119,6 +121,7 @@ class TCPTest
         
     def flash(i)
 
+        print("start ...")
         self.loop_max = i
         self.really_read = 0
         self.flash_mode = 1
@@ -136,8 +139,8 @@ class TCPTest
         end
         self.tcp.close()
         print("flash size",self.flash_size)
-        self.open_url()
-        self.start_flash()
+#        self.open_url()
+#        self.start_flash()
 
     end
                 
