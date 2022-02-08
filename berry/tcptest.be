@@ -1,6 +1,7 @@
 class TCPTest
 
-    static flash_url = "http://172.17.20.5:8080/static/chunks/nxpanel.tft"
+    static flash_url = "http://demo-hadinger.s3.eu-west-3.amazonaws.com:80/nxpanel.tft"
+    #static flash_url = "http://172.17.20.5:8080/static/chunks/nxpanel.tft"
     static max_block = 4096
 
     var flash_size
@@ -38,117 +39,55 @@ class TCPTest
         print(host,port,get)
         self.tcp = tcpclient()
         self.tcp.connect(host,port)
-        self.tcp.write("GET "+get+" HTTP/1.0\r\n\r\n")
+        self.tcp.write("GET "+self.flash_url+" HTTP/1.0\r\n\r\n")
+        tasmota.delay(500)
 
     end
 
-    def readbytes()
-
-        for retry: 1..3
-            if self.tcp.available()>0
-                var b = self.tcp.readbytes()
-                self.really_read+=size(b)
-                print("read", size(b), self.really_read)
-                return b
-            end
-            tasmota.gc()
-            tasmota.yield()
-            #tasmota.delay(100*retry)
-            print("retry", retry)
-        end
-        print("nothing to read, eof?")
-        return nil
-
-    end
-
-    def get_next_block()
-
-        var w_buff
-        while size(self.flash_buff)<self.max_block && !self.flash_complete
-            var b = self.readbytes()
-            if b!=nil
-                self.flash_buff += b
-            else
-                self.flash_complete = true
-            end
-        end
-        if size(self.flash_buff)>self.max_block
-            w_buff = self.flash_buff[0..self.max_block-1]
-            self.flash_buff = self.flash_buff[self.max_block..]
-        else 
-            w_buff = self.flash_buff
-            self.flash_buff = bytes()
-        end
-        return w_buff
-
-    end
-
-    def flash_loop()
-        
-        var loop = 0
-        while self.flash_count<self.flash_size
-            var b = self.get_next_block()
-            if size(b)>0
-                self.flash_count+=size(b)
-                #print("written",size(b))
-                #  write_block
-                tasmota.delay(50)
-                tasmota.gc()
-                tasmota.yield()
-            else 
-                print("flash complete - failed, wrote", self.flash_count)
-                self.flash_count = self.flash_size # force exit
-                print("zero bytes?")
-            end
-            loop += 1
-            if loop>self.loop_max # test case fudge
-                print("flash complete - forced test exit, should have done", self.flash_size, "really did", self.really_read)
-                self.flash_count = self.flash_size # force exit in test
-            end
-        end
-        self.flash_mode = 0;
-        print("flash complete, wrote", self.flash_count, "gc()", tasmota.gc())
+    def proc_block(b)
+    
+        self.flash_count += size(b)
+        #print("read", size(b), self.flash_count)
 
     end
                     
-    def start_flash()
+    def loop_till_done()
 
-        self.really_read = 0
-        tasmota.set_timer(0,self.flash_loop())
+        while self.tcp.available()>0
+            var b = self.tcp.readbytes();
+            self.flash_buff += b
+            while size(self.flash_buff)>self.max_block
+                self.proc_block(self.flash_buff[1..self.max_block])
+                self.flash_buff = self.flash_buff[self.max_block..]
+            end
+        end
+        if self.tcp.connected()
+            tasmota.set_timer(50,self.loop_till_done())
+        else
+            if size(self.flash_buff)>0
+                self.proc_block(self.flash_buff)
+            end
+            print("complete")
+        end
 
     end
 
-        
-    def flash(i)
+    def start_flash()
 
-        print("start ...")
-        self.loop_max = i
-        self.really_read = 0
-        self.flash_mode = 1
-        self.flash_complete = false
-        self.flash_size = 0
         self.flash_count = 0
         self.flash_buff = bytes()
         self.open_url()
-        var b = bytes()
-        while b != nil
-            b = self.readbytes()
-            if (b!=nil)
-                self.flash_size+=size(b)
-            end
-        end
-        self.tcp.close()
-        print("flash size",self.flash_size)
-#        self.open_url()
-#        self.start_flash()
+        print("url opened")
+        self.loop_till_done()
+        print("done", self.flash_url)
 
     end
-                
+                        
 end
  
 tcptest = TCPTest()
 
-tcptest.flash(50)
+tcptest.start_flash()
 
 
 
