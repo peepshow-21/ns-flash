@@ -5,7 +5,7 @@
 
 class Nextion : Driver
 
-    static VERSION = "v1.1.0-beta"
+    static VERSION = "v1.0.0-beta1"
     static CHUNK_FILE = "nextion"
     static header = bytes().fromstring("PS")
 
@@ -16,7 +16,28 @@ class Nextion : Driver
     var chunk
     var tot_read
     var last_per
-    var flash_url
+
+    def split_msg(b)   
+        import string
+        var ret = []
+        var i = 0
+        while i < size(b)-1
+            if b[i] == 0x55 && b[i+1] == 0xAA
+                if i > 0
+                    var nb = b[0..i-1];
+                    ret.push(nb)
+                end
+                b = b[i+2..]
+                i = 0
+            else
+                i+=1
+            end
+        end
+        if size(b) > 0
+            ret.push(b)
+        end
+        return ret
+    end
 
     def crc16(data, poly)
       if !poly  poly = 0xA001 end
@@ -123,7 +144,7 @@ class Nextion : Driver
 
     def screeninit()
         log("NSP: Screen Initialized") 
-        self.sendnx("berry.txt=\""+self.VERSION+"\"")
+        self.sendnx("berry_ver.txt=\"berry: "+self.VERSION+"\"")
     end
 
     def every_100ms()
@@ -153,17 +174,23 @@ class Nextion : Driver
                         tasmota.yield()
                     end
                 else
-                    if msg == bytes('000000FFFFFF88FFFFFF')
-                        self.screeninit()
-                    elif msg[0]==0x7B
-                        var jm = string.format("{\"json\":%s}",msg[0..-1].asstring())
-                        tasmota.publish_result(jm, "RESULT")        
-                    elif msg[0]==0x07 # T
-                        tasmota.cmd("buzzer 1,1")
-                    else
-                        var jm = string.format("{\"nextion\":\"%s\"}",str(msg[0..-4]))
-                        tasmota.publish_result(jm, "RESULT")        
-                    end       
+                    var msg_list = self.split_msg(msg)
+                    for i:0..size(msg_list)-1
+                        msg = msg_list[i]
+                        if size(msg) > 0
+                            if msg == bytes('000000FFFFFF88FFFFFF')
+                                self.screeninit()
+                            elif msg[0]==0x7B # JSON, starting with "{"
+                                var jm = string.format("%s",msg[0..-1].asstring())
+                                tasmota.publish_result(jm, "RESULT")        
+                            elif msg[0]==0x07 && size(msg)==1 # BELL/Buzzer
+                                tasmota.cmd("buzzer 1,1")
+                            else
+                                var jm = string.format("{\"nextion\":\"%s\"}",str(msg[0..-4]))
+                                tasmota.publish_result(jm, "RESULT")        
+                            end
+                        end       
+                    end
                 end
             end
         end
@@ -186,39 +213,18 @@ class Nextion : Driver
         self.sendnx('recmod=0')
         self.sendnx('recmod=0')
         self.sendnx("connect")        
-        var tcp = tcpclient()
-        tcp.connect(flash_url, 8080)
-        var count = 0
-        log("wait for data ...")
-        while tcp.available()<=0 && count<3
-            log("retry")
-           tasmota.delay(100)
-           count++
-        end
-        if tcp.available()<=0
-            log("can't read flash file")
-            return
-        end
-        self.flash_size = 0
-        var r = 1
-        log("sizing file ...")
-        while r>0 
-            var b = tcp.bytes()
-            r = b.size()
-            self.flash_size += r
-            log("read "+str(r))
-        end
-        log("total size "+str(self.flash_size))
-
-        
-        r = tcp.read()
-        tcp.close()
-        print(r)        self.flash_mode = 1
+        self.flash_mode = 1
     end
     
     def start_flash(url)
-        self.flash_url = url
         self.last_per = -1
+        self.chunk_url = url
+        import string
+        var file = (string.format("%s/%s.txt",self.chunk_url,self.CHUNK_FILE))
+        var s = self.getPage(file)
+        self.flash_size = int(s)
+        self.tot_read = 0
+        self.chunk = 0
         #self.begin_file_flash()
         self.begin_nextion_flash()
     end
@@ -275,6 +281,7 @@ def send_cmd2(cmd, idx, payload, payload_json)
 end
 
 tasmota.add_cmd('Screen', send_cmd2)
+tasmota.add_cmd('NxPanel', send_cmd2)
 
 tasmota.add_rule("power1#state", /-> nextion.set_power())
 tasmota.add_rule("power2#state", /-> nextion.set_power())
