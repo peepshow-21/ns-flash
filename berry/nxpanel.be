@@ -61,8 +61,15 @@ class Nextion : Driver
       b += self.header
       var nsp_type = 0 # not used
       b.add(nsp_type)       # add a single byte
-      b.add(size(payload), 2)   # add size as 2 bytes, little endian
-      b += bytes().fromstring(payload)
+      var b1 = bytes().fromstring(payload)
+      var b2 = bytes()
+      for i: 0..size(b1)-1
+        if (b1[i]!=0xC2)
+            b2.add(b1[i])
+        end
+      end
+      b.add(size(b2), 2)   # add size as 2 bytes, little endian
+      b += b2
       var msg_crc = self.crc16(b)
       b.add(msg_crc, 2)       # crc 2 bytes, little endian
       return b
