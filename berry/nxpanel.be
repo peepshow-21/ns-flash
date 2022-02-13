@@ -5,11 +5,11 @@
 
 # Example Flash
 # FlashNextion http://172.17.20.5:8080/static/chunks/nxpanel.tft
-# FlashNextion http://demo-hadinger.s3.eu-west-3.amazonaws.com:80/nxpanel.tft
+# FlashNextion http://proto.systems/nxpanel/nxpanel-1.0.0.tft
 
 class Nextion : Driver
 
-    static VERSION = "v1.1.0-beta2"
+    static VERSION = "1.1.0"
     static header = bytes().fromstring("PS")
 
     static flash_block_size = 4096
@@ -23,6 +23,7 @@ class Nextion : Driver
     var tcp
     var ser
     var last_per
+    var auto_update_flag
 
     def split_msg(b)   
         import string
@@ -102,16 +103,30 @@ class Nextion : Driver
         self.ser.write(b)
     end
 
-    def init()
-        log("NXP: Initializing Driver")
-        self.ser = serial(17, 16, 115200, serial.SERIAL_8N1)
-        self.sendnx('DRAKJHSUYDGBNCJHGJKSHBDN')
-        self.flash_mode = 0
-    end
-
     def screeninit()
         log("NXP: Screen Initialized") 
-        self.sendnx("berry_ver.txt=\"berry: "+self.VERSION+"\"")
+        self.sendnx("berry.txt=\"berry: "+self.VERSION+"\"")
+        tasmota.delay(50)
+        self.sendnx("recmod=1")
+        tasmota.delay(50)
+        import persist
+        if persist.has("config")
+            var m = map()
+            m.setitem("config",persist.config)
+            var s = m.tostring()
+            log("NXP: Restoring: "+s)
+            var json = ""
+            for i: 0..size(s)-1
+                if s[i]=="'"
+                    json += '"'
+                else
+                    json += s[i]
+                end
+            end
+            log("NXP: Restoring: "+json)
+            self.send(json)
+        end
+        self.check_for_updates()
     end
 
     def write_block()
@@ -326,6 +341,86 @@ class Nextion : Driver
 
     end
 
+    def version_number(str)
+        import string
+        var i1 = string.find(str,".",0)
+        var i2 = string.find(str,".",i1+1)
+        var num = int(str[0..i1-1])*10000+int(str[i1+1..i2-1])*100+int(str[i2+1..])
+        return num
+    end
+
+    def auto_update()
+
+        log("NXP: Triggering update check");
+        self.auto_update_flag = 1
+        var json = '{"config": ""}'
+        self.send(json)
+
+    end
+
+    def update_trigger (value, trigger, msg)
+        log("NXP: persist msg: "+str(msg))
+        import persist
+        persist.config = msg.item("config")
+        persist.save()
+        log("NXP: persist saved")
+        if self.auto_update_flag==0
+            return
+        end
+        self.auto_update_flag = 0
+        import string
+        var url = nil
+        if msg.item("config").item("at")==1
+            log("NXP: Update check for 'testing'")
+            url = "http://proto.systems/nxpanel/version-testing.txt"
+        elif msg.item("config").item("au")==1
+            log("NXP: Update check for 'release'")
+            url = "http://proto.systems/nxpanel/version-release.txt"
+        else
+            log("NXP: No auto update active")
+        end
+        if url!=nil
+            log("url: "+url)
+            var web = webclient()
+            web.begin(url)
+            web.GET()
+            var ver = web.get_string()
+            var i=string.find(ver,"\n")
+            if i>0
+                ver = ver[0..i-1]
+            end
+            if self.version_number(ver)>self.version_number(value)
+                log("NXP: Newer version available - "+ver)
+                url = "http://proto.systems/nxpanel/nxpanel-"+ver+".tft"
+                tasmota.set_timer(100,/->self.flash_nextion(url))
+            else
+                log("NXP: Current version "+value+" is latest")
+            end
+            web.close()
+        end
+    end
+
+    def check_for_updates()
+        
+        self.auto_update()
+        tasmota.set_timer(1000*60*30,/->self.check_for_updates()) # 30 mins
+
+    end
+
+    def init()
+        log("NXP: Initializing Driver")
+        self.ser = serial(17, 16, 115200, serial.SERIAL_8N1)
+        self.sendnx('DRAKJHSUYDGBNCJHGJKSHBDN')
+        self.sendnx('rest')
+        self.flash_mode = 0
+    end
+
+    def install()
+
+        self.flash_nextion("http://proto.systems/nxpanel/nxpanel-latest.tft")
+
+    end
+
 end
 
 var nextion = Nextion()
@@ -354,12 +449,26 @@ def send_cmd2(cmd, idx, payload, payload_json)
     tasmota.resp_cmnd_done()
 end
 
+def auto_update(cmd, idx, payload, payload_json)
+    nextion.auto_update()
+    tasmota.resp_cmnd_done()
+end
+
+def install_nxpanel()
+    tasmota.set_timer(50,/->nextion.install())
+    tasmota.resp_cmnd_done()
+end
+
 tasmota.add_cmd('Screen', send_cmd2)
 tasmota.add_cmd('NxPanel', send_cmd2)
+tasmota.add_cmd('AutoFlash', auto_update)
+tasmota.add_cmd('InstallNxPanel', install_nxpanel)
 
 tasmota.add_rule("power1#state", /-> nextion.set_power())
 tasmota.add_rule("power2#state", /-> nextion.set_power())
-tasmota.cmd("Rule3 1") # needed until Berry bug fixed
 tasmota.add_rule("Time#Minute", /-> nextion.set_clock())
+tasmota.add_rule("alarm#update=1", /-> nextion.auto_update())
+tasmota.add_rule("config#v", /a,b,c-> nextion.update_trigger(a,b,c))
+tasmota.cmd("Rule3 1") # needed until Berry bug fixed
 tasmota.cmd("State")
 
