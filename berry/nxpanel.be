@@ -3,19 +3,27 @@
 # based on;
 # Sonoff NSPanel Tasmota driver v0.47 | code by blakadder and s-hadinger
 
+# Example Flash
+# FlashNextion http://172.17.20.5:8080/static/chunks/nxpanel.tft
+# FlashNextion http://proto.systems/nxpanel/nxpanel-1.0.0.tft
+
 class Nextion : Driver
 
-    static VERSION = "v1.0.0-beta1"
-    static CHUNK_FILE = "nextion"
+    static VERSION = "1.1.0"
     static header = bytes().fromstring("PS")
 
+    static flash_block_size = 4096
+
     var flash_mode
-    var ser
-    var chunk_url
     var flash_size
-    var chunk
-    var tot_read
+    var flash_written
+    var flash_buff
+    var flash_offset
+    var awaiting_offset
+    var tcp
+    var ser
     var last_per
+    var auto_update_flag
 
     def split_msg(b)   
         import string
@@ -85,73 +93,91 @@ class Nextion : Driver
         import string
         var payload_bin = self.encodenx(payload)
         self.ser.write(payload_bin)
-        log(string.format("NSP: Nextion command sent = %s",str(payload_bin)), 3)       
+        log(string.format("NXP: Nextion command sent = %s",str(payload_bin)), 3)       
     end
 
     def send(payload)
         var payload_bin = self.encode(payload)
         if self.flash_mode==1
-            log("NSP: skipped command becuase still flashing", 3)
+            log("NXP: skipped command becuase still flashing", 3)
         else 
             self.ser.write(payload_bin)
-            log("NSP: payload sent = " + str(payload_bin), 3)
+            log("NXP: payload sent = " + str(payload_bin), 3)
         end
-    end
-
-    def getPage(url)
-        var s
-        var retry = 0
-        while (retry>=0 && retry<5)
-            var wc = webclient()
-            wc.begin(url)
-            var r = wc.GET()
-            if (r==200)
-                s = wc.get_string()
-                retry = -1
-            else
-                s = nil
-                retry = retry + 1
-                log("NSP: HTTP retry required")
-            end
-            wc.close()
-        end
-        if (s==nil) 
-            log("NSP: Failed to load chunk over http")
-        end
-        return s    
-    end
-
-    def write_to_file(b)
-        log("DBG: Write to file")
-        var f = open("test.bin","a")
-        f.write(b)
-        f.close()
     end
 
     def write_to_nextion(b)
         self.ser.write(b)
     end
 
-    def write_chunk()
-        import string
-        var name = string.format("%s/%s-%04d.hex",self.chunk_url,self.CHUNK_FILE,self.chunk)
-        var s = self.getPage(name)
-        var b = bytes(s)
-        #self.write_to_file(b)
-        self.write_to_nextion(b)
-        return b.size()
-    end
-
-    def init()
-        log("NSP: Initializing Driver")
-        self.ser = serial(17, 16, 115200, serial.SERIAL_8N1)
-        self.sendnx('DRAKJHSUYDGBNCJHGJKSHBDN')
-        self.flash_mode = 0
-    end
-
     def screeninit()
-        log("NSP: Screen Initialized") 
-        self.sendnx("berry_ver.txt=\"berry: "+self.VERSION+"\"")
+        log("NXP: Screen Initialized") 
+        self.sendnx("berry.txt=\"berry: "+self.VERSION+"\"")
+        tasmota.delay(50)
+        self.sendnx("recmod=1")
+        tasmota.delay(50)
+        import persist
+        if persist.has("config")
+            var m = map()
+            m.setitem("config",persist.config)
+            var s = m.tostring()
+            log("NXP: Restoring: "+s)
+            var json = ""
+            for i: 0..size(s)-1
+                if s[i]=="'"
+                    json += '"'
+                else
+                    json += s[i]
+                end
+            end
+            log("NXP: Restoring: "+json)
+            self.send(json)
+        end
+        self.check_for_updates()
+    end
+
+    def write_block()
+        
+        import string
+        log("FLH: Read block",3)
+        while size(self.flash_buff)<self.flash_block_size && self.tcp.connected()
+            if self.tcp.available()>0
+                self.flash_buff += self.tcp.readbytes()
+            else
+                tasmota.delay(50)
+                log("FLH: Wait for available...",3)
+            end
+        end
+        log("FLH: Buff size "+str(size(self.flash_buff)),3)
+        var to_write
+        if size(self.flash_buff)>self.flash_block_size
+            to_write = self.flash_buff[0..self.flash_block_size-1]
+            self.flash_buff = self.flash_buff[self.flash_block_size..]
+        else
+            to_write = self.flash_buff
+            self.flash_buff = bytes()
+        end
+        log("FLH: Writing "+str(size(to_write)),3)
+        var per = (self.flash_written*100)/self.flash_size
+        if (self.last_per!=per) 
+            self.last_per = per
+            tasmota.publish_result(string.format("{\"Flashing\":{\"complete\": %d}}",per), "RESULT") 
+        end
+        if size(to_write)>0
+            self.flash_written += size(to_write)
+            if self.flash_offset==0 || self.flash_written>self.flash_offset
+                self.ser.write(to_write)
+                self.flash_offset = 0
+            else
+                tasmota.set_timer(10,/->self.write_block())
+            end
+        end
+        log("FLH: Total "+str(self.flash_written),3)
+        if (self.flash_written==self.flash_size)
+            log("FLH: Flashing complete")
+            self.flash_mode = 0
+        end
+
     end
 
     def every_100ms()
@@ -159,26 +185,24 @@ class Nextion : Driver
         if self.ser.available() > 0
             var msg = self.ser.read()
             if size(msg) > 0
-                log(string.format("NSP: Received Raw = %s",str(msg)), 3)
+                log(string.format("NXP: Received Raw = %s",str(msg)), 3)
                 if (self.flash_mode==1)
-                    var str = msg[0..-4].asstring()
-                    log(str, 3)
-                    if (string.find(str,"comok 2")==0) 
-                        self.sendnx(string.format("whmi-wri %d,115200,res0",self.flash_size))
-                    elif (size(msg)==1 && msg[0]==0x05)
-                        var x = self.write_chunk()
-                        self.tot_read = self.tot_read + x
-                        self.chunk = self.chunk + 1
-                        var per = (self.tot_read*100)/self.flash_size
-                        if (self.last_per!=per) 
-                            self.last_per = per
-                            tasmota.publish_result(string.format("{\"Flashing\":{\"complete\": %d}}",per), "RESULT") 
-                        end
-                        if (self.tot_read==self.flash_size)
-                            log("NSP: Flashing complete")
-                            self.flash_mode = 0
-                        end
-                        tasmota.yield()
+                    var strv = msg[0..-4].asstring()
+                    if string.find(strv,"comok 2")>=0
+                        log("FLH: Send (High Speed) flash start")
+                        self.sendnx(string.format("whmi-wris %d,115200,res0",self.flash_size))
+                    elif size(msg)==1 && msg[0]==0x08
+                        log("FLH: Waiting offset...",3)
+                        self.awaiting_offset = 1
+                    elif size(msg)==4 && self.awaiting_offset==1
+                        self.awaiting_offset = 0
+                        self.flash_offset = msg.get(0,4)
+                        log("FLH: Flash offset marker "+str(self.flash_offset),3)
+                        self.write_block()
+                    elif size(msg)==1 && msg[0]==0x05
+                        self.write_block()
+                    else
+                        log("FLH: Something has gone wrong flashing nxpanel ["+str(msg)+"]",2)
                     end
                 else
                     var msg_list = self.split_msg(msg)
@@ -203,39 +227,17 @@ class Nextion : Driver
         end
     end      
 
-    def begin_file_flash()
-        self.flash_mode = 1
-        var f = open("test.bin","w")
-        f.close()
-        while self.tot_read<self.flash_size
-            var x = self.write_chunk()
-            self.tot_read = self.tot_read + x
-            self.chunk = self.chunk + 1
-            tasmota.yield()
-        end        
-    end
-
     def begin_nextion_flash()
+        self.flash_written = 0
+        self.awaiting_offset = 0
+        self.flash_offset = 0
         self.sendnx('DRAKJHSUYDGBNCJHGJKSHBDN')
         self.sendnx('recmod=0')
         self.sendnx('recmod=0')
-        self.sendnx("connect")        
         self.flash_mode = 1
+        self.sendnx("connect")        
     end
     
-    def start_flash(url)
-        self.last_per = -1
-        self.chunk_url = url
-        import string
-        var file = (string.format("%s/%s.txt",self.chunk_url,self.CHUNK_FILE))
-        var s = self.getPage(file)
-        self.flash_size = int(s)
-        self.tot_read = 0
-        self.chunk = 0
-        #self.begin_file_flash()
-        self.begin_nextion_flash()
-    end
-
     def set_power()
       var ps = tasmota.get_power()
       for i:0..1
@@ -246,7 +248,7 @@ class Nextion : Driver
         end
       end
       var json_payload = '{ "switches": { "switch1": ' + ps[0] + ' , "switch2": ' + ps[1] +  ' } }'
-      log('NSP: Switch state updated with ' + json_payload)
+      log('NXP: Switch state updated with ' + json_payload)
       self.send(json_payload)
     end
 
@@ -255,8 +257,175 @@ class Nextion : Driver
       var time_raw = now['local']
       var nsp_time = tasmota.time_dump(time_raw)
       var time_payload = '{ "clock": { "date":' + str(nsp_time['day']) + ',"month":' + str(nsp_time['month']) + ',"year":' + str(nsp_time['year']) + ',"weekday":' + str(nsp_time['weekday']) + ',"hour":' + str(nsp_time['hour']) + ',"min":' + str(nsp_time['min']) + ' } }'
-      log('NSP: Time and date synced with ' + time_payload, 3)
+      log('NXP: Time and date synced with ' + time_payload, 3)
       self.send(time_payload)
+    end
+
+    def open_url(url)
+
+        import string
+        var host
+        var port
+        var s1 = string.split(url,7)[1]
+        var i = string.find(s1,":")
+        var sa
+        if i<0
+            port = 80
+            i = string.find(s1,"/")
+            sa = string.split(s1,i)
+            host = sa[0]
+        else
+            sa = string.split(s1,i)
+            host = sa[0]
+            s1 = string.split(sa[1],1)[1]
+            i = string.find(s1,"/")
+            sa = string.split(s1,i)
+            port = int(sa[0])
+        end
+        var get = sa[1]
+        log(string.format("FLH: host: %s, port: %s, get: %s",host,port,get))
+        self.tcp = tcpclient()
+        self.tcp.connect(host,port)
+        log("FLH: Connected:"+str(self.tcp.connected()),3)
+        var get_req = "GET "+url+" HTTP/1.0\r\n\r\n"
+        self.tcp.write(get_req)
+        var a = self.tcp.available()
+        i = 0
+        while a==0 && i<3
+          tasmota.delay(100)
+          i += 1
+          log("FLH: Retry "+str(i),3)
+          a = self.tcp.available()
+        end
+        if a==0
+            return
+        end
+        var b = self.tcp.readbytes()
+        i = 0
+        var end_headers = false;
+        var headers
+        while i<size(b) && headers==nil
+            if b[i..(i+3)]==bytes().fromstring("\r\n\r\n") 
+                headers = b[0..(i+3)].asstring()
+                self.flash_buff = b[(i+4)..]
+            else
+                i += 1
+            end
+        end
+        #print(headers)
+        var tag = "Content-Length: "
+        i = string.find(headers,tag)
+        if (i>0) 
+            var i2 = string.find(headers,"\r\n",i)
+            var s = headers[i+size(tag)..i2-1]
+            self.flash_size=int(s)
+        end
+        if self.flash_size==0
+            log("FLH: No size header, counting ...",3)
+            self.flash_size = size(self.flash_buff)
+            #print("counting start ...")
+            while self.tcp.connected()
+                while self.tcp.available()>0
+                    self.flash_size += size(self.tcp.readbytes())
+                end
+                tasmota.delay(50)
+            end
+            #print("counting end ...",self.flash_size)
+            self.tcp.close()
+            self.open_url(url)
+        else
+            log("FLH: Size found in header, skip count",3)
+        end
+        log("FLH: Flash file size: "+str(self.flash_size),3)
+
+    end
+
+    def flash_nextion(url)
+
+        self.flash_size = 0
+        self.open_url(url)
+        self.begin_nextion_flash()
+
+    end
+
+    def version_number(str)
+        import string
+        var i1 = string.find(str,".",0)
+        var i2 = string.find(str,".",i1+1)
+        var num = int(str[0..i1-1])*10000+int(str[i1+1..i2-1])*100+int(str[i2+1..])
+        return num
+    end
+
+    def auto_update()
+
+        log("NXP: Triggering update check");
+        self.auto_update_flag = 1
+        var json = '{"config": ""}'
+        self.send(json)
+
+    end
+
+    def update_trigger (value, trigger, msg)
+        log("NXP: persist msg: "+str(msg))
+        import persist
+        persist.config = msg.item("config")
+        persist.save()
+        log("NXP: persist saved")
+        if self.auto_update_flag==0
+            return
+        end
+        self.auto_update_flag = 0
+        import string
+        var url = nil
+        if msg.item("config").item("at")==1
+            log("NXP: Update check for 'testing'")
+            url = "http://proto.systems/nxpanel/version-testing.txt"
+        elif msg.item("config").item("au")==1
+            log("NXP: Update check for 'release'")
+            url = "http://proto.systems/nxpanel/version-release.txt"
+        else
+            log("NXP: No auto update active")
+        end
+        if url!=nil
+            log("url: "+url)
+            var web = webclient()
+            web.begin(url)
+            web.GET()
+            var ver = web.get_string()
+            var i=string.find(ver,"\n")
+            if i>0
+                ver = ver[0..i-1]
+            end
+            if self.version_number(ver)>self.version_number(value)
+                log("NXP: Newer version available - "+ver)
+                url = "http://proto.systems/nxpanel/nxpanel-"+ver+".tft"
+                tasmota.set_timer(100,/->self.flash_nextion(url))
+            else
+                log("NXP: Current version "+value+" is latest")
+            end
+            web.close()
+        end
+    end
+
+    def check_for_updates()
+        
+        self.auto_update()
+        tasmota.set_timer(1000*60*30,/->self.check_for_updates()) # 30 mins
+
+    end
+
+    def init()
+        log("NXP: Initializing Driver")
+        self.ser = serial(17, 16, 115200, serial.SERIAL_8N1)
+        self.sendnx('DRAKJHSUYDGBNCJHGJKSHBDN')
+        self.sendnx('rest')
+        self.flash_mode = 0
+    end
+
+    def install()
+
+        self.flash_nextion("http://proto.systems/nxpanel/nxpanel-latest.tft")
+
     end
 
 end
@@ -267,7 +436,7 @@ tasmota.add_driver(nextion)
 
 def flash_nextion(cmd, idx, payload, payload_json)
     def task()
-        nextion.start_flash(payload)
+        nextion.flash_nextion(payload)
     end
     tasmota.set_timer(0,task)
     tasmota.resp_cmnd_done()
@@ -287,13 +456,26 @@ def send_cmd2(cmd, idx, payload, payload_json)
     tasmota.resp_cmnd_done()
 end
 
+def auto_update(cmd, idx, payload, payload_json)
+    nextion.auto_update()
+    tasmota.resp_cmnd_done()
+end
+
+def install_nxpanel()
+    tasmota.set_timer(50,/->nextion.install())
+    tasmota.resp_cmnd_done()
+end
+
 tasmota.add_cmd('Screen', send_cmd2)
 tasmota.add_cmd('NxPanel', send_cmd2)
+tasmota.add_cmd('AutoFlash', auto_update)
+tasmota.add_cmd('InstallNxPanel', install_nxpanel)
 
 tasmota.add_rule("power1#state", /-> nextion.set_power())
 tasmota.add_rule("power2#state", /-> nextion.set_power())
-tasmota.cmd("Rule3 1") # needed until Berry bug fixed
 tasmota.add_rule("Time#Minute", /-> nextion.set_clock())
+tasmota.add_rule("alarm#update=1", /-> nextion.auto_update())
+tasmota.add_rule("config#v", /a,b,c-> nextion.update_trigger(a,b,c))
+tasmota.cmd("Rule3 1") # needed until Berry bug fixed
 tasmota.cmd("State")
-
 
