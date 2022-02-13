@@ -121,7 +121,6 @@ class Nextion : Driver
             var m = map()
             m.setitem("config",persist.config)
             var s = m.tostring()
-            log("NXP: Restoring: "+s)
             var json = ""
             for i: 0..size(s)-1
                 if s[i]=="'"
@@ -366,11 +365,11 @@ class Nextion : Driver
     end
 
     def update_trigger (value, trigger, msg)
-        log("NXP: persist msg: "+str(msg))
+        log("NXP: persist msg: "+str(msg),3)
         import persist
         persist.config = msg.item("config")
         persist.save()
-        log("NXP: persist saved")
+        log("NXP: persist saved",3)
         if self.auto_update_flag==0
             return
         end
@@ -387,7 +386,6 @@ class Nextion : Driver
             log("NXP: No auto update active")
         end
         if url!=nil
-            log("url: "+url)
             var web = webclient()
             web.begin(url)
             web.GET()
