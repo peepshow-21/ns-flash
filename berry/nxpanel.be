@@ -9,7 +9,7 @@
 
 class Nextion : Driver
 
-    static VERSION = "1.1.0"
+    static VERSION = "1.1.1"
     static header = bytes().fromstring("PS")
 
     static flash_block_size = 4096
@@ -401,7 +401,7 @@ class Nextion : Driver
     def check_for_updates()
         
         self.auto_update()
-        tasmota.set_timer(1000*60*30,/->self.check_for_updates()) # 30 mins
+        tasmota.set_timer(1000*60*60*24,/->self.check_for_updates()) # daily
 
     end
 
