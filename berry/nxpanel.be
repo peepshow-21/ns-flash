@@ -9,7 +9,7 @@
 
 class Nextion : Driver
 
-    static VERSION = "1.1.1"
+    static VERSION = "1.1.2"
     static header = bytes().fromstring("PS")
 
     static flash_block_size = 4096
@@ -433,14 +433,10 @@ def flash_nextion(cmd, idx, payload, payload_json)
     tasmota.resp_cmnd_done()
 end
 
-tasmota.add_cmd('FlashNextion', flash_nextion)
-
 def send_cmd(cmd, idx, payload, payload_json)
     nextion.sendnx(payload)
     tasmota.resp_cmnd_done()
 end
-
-tasmota.add_cmd('Nextion', send_cmd)
 
 def send_cmd2(cmd, idx, payload, payload_json)
     nextion.send(payload)
@@ -457,8 +453,16 @@ def install_nxpanel()
     tasmota.resp_cmnd_done()
 end
 
+def forward_nsp(cmd, idx, payload, payload_json)
+    tasmota.publish_result(payload_json, "RESULT")        
+    tasmota.resp_cmnd_done()
+end
+
+tasmota.add_cmd('NSPSend', forward_nsp)
+tasmota.add_cmd('Nextion', send_cmd)
 tasmota.add_cmd('Screen', send_cmd2)
 tasmota.add_cmd('NxPanel', send_cmd2)
+tasmota.add_cmd('FlashNextion', flash_nextion)
 tasmota.add_cmd('AutoFlash', auto_update)
 tasmota.add_cmd('InstallNxPanel', install_nxpanel)
 
