@@ -453,12 +453,6 @@ def install_nxpanel()
     tasmota.resp_cmnd_done()
 end
 
-def forward_nsp(cmd, idx, payload, payload_json)
-    tasmota.publish_result(payload, "RESULT")        
-    tasmota.resp_cmnd_done()
-end
-
-tasmota.add_cmd('NSPSend', forward_nsp)
 tasmota.add_cmd('Nextion', send_cmd)
 tasmota.add_cmd('Screen', send_cmd2)
 tasmota.add_cmd('NxPanel', send_cmd2)
