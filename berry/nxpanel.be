@@ -461,7 +461,7 @@ def install_nxpanel()
 end
 
 def forward_nsp(cmd, idx, payload, payload_json)
-    tasmota.publish_result(payload_json, "RESULT")        
+    tasmota.publish_result(payload, "RESULT")        
     tasmota.resp_cmnd_done()
 end
 
