@@ -9,7 +9,7 @@
 
 class Nextion : Driver
 
-    static VERSION = "1.1.2"
+    static VERSION = "1.1.3"
     static header = bytes().fromstring("PS")
 
     static flash_block_size = 4096
@@ -105,10 +105,11 @@ class Nextion : Driver
 
     def screeninit()
         log("NXP: Screen Initialized") 
-        self.sendnx("berry.txt=\"berry: "+self.VERSION+"\"")
-        tasmota.delay(50)
+        self.sendnx("berry.txt=\""+self.VERSION+"\"")
+        self.sendnx("click init_bn,1")
         self.sendnx("recmod=1")
         tasmota.delay(50)
+        self.set_power()
         import persist
         if persist.has("config")
             var m = map()
