@@ -283,14 +283,16 @@ class Nextion : Driver
         var get_req = "GET "+url+" HTTP/1.0\r\n\r\n"
         self.tcp.write(get_req)
         var a = self.tcp.available()
-        i = 0
-        while a==0 && i<3
-          tasmota.delay(100)
+        i = 1
+        while a==0 && i<5
+          tasmota.delay(100*i)
+          tasmota.yield() 
           i += 1
           log("FLH: Retry "+str(i),3)
           a = self.tcp.available()
         end
         if a==0
+            log("FLH: Nothing available to read!",3)
             return
         end
         var b = self.tcp.readbytes()
@@ -381,8 +383,11 @@ class Nextion : Driver
         end
         if url!=nil
             var web = webclient()
+            log("FLH: Open: "+url,3)
             web.begin(url)
-            web.GET()
+            log("FLH: GET ...",3)
+            var r = web.GET()
+            log("FLH: STAT "+str(r),3)
             var ver = web.get_string()
             var i=string.find(ver,"\n")
             if i>0
