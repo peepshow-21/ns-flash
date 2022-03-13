@@ -316,7 +316,18 @@ class Nextion : Driver
             end
         end
         #print(headers)
-        var tag = "Content-Length: "
+		# check http respose for code 200
+		var tag = "200 OK"
+        i = string.find(headers,tag)
+        if (i>0) 
+            log("FLH: HTTP Respose is 200 OK",3)
+		else
+            log("FLH: HTTP Respose is not 200 OK",3)
+			print(headers)
+			return
+        end
+		# check http respose for content-length
+        tag = "Content-Length: "
         i = string.find(headers,tag)
         if (i>0) 
             var i2 = string.find(headers,"\r\n",i)
