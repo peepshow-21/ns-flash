@@ -287,7 +287,8 @@ class Nextion : Driver
         self.tcp = tcpclient()
         self.tcp.connect(host,port)
         log("FLH: Connected:"+str(self.tcp.connected()),3)
-        var get_req = "GET "+url+" HTTP/1.0\r\n\r\n"
+        var get_req = "GET "+url+" HTTP/1.0\r\n"
+        get_req += "HOST: " + host + "\r\n\r\n"
         self.tcp.write(get_req)
         var a = self.tcp.available()
         i = 1
