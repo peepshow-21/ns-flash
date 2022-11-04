@@ -350,11 +350,11 @@ class Nextion : Driver
 
     end
 
-    def version_number(str)
+    def version_number(inStr)
         import string
-        var i1 = string.find(str,".",0)
-        var i2 = string.find(str,".",i1+1)
-        var num = int(str[0..i1-1])*10000+int(str[i1+1..i2-1])*100+int(str[i2+1..])
+        var i1 = string.find(inStr,".",0)
+        var i2 = string.find(inStr,".",i1+1)
+        var num = int(inStr[0..i1-1])*10000+int(inStr[i1+1..i2-1])*100+int(inStr[i2+1..])
         return num
     end
 
