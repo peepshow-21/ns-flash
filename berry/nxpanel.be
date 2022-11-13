@@ -9,7 +9,7 @@
 
 class Nextion : Driver
 
-    static VERSION = "1.1.3"
+    static VERSION = "1.1.4"
     static header = bytes().fromstring("PS")
 
     static flash_block_size = 4096
@@ -350,11 +350,11 @@ class Nextion : Driver
 
     end
 
-    def version_number(str)
+    def version_number(sval)
         import string
-        var i1 = string.find(str,".",0)
-        var i2 = string.find(str,".",i1+1)
-        var num = int(str[0..i1-1])*10000+int(str[i1+1..i2-1])*100+int(str[i2+1..])
+        var i1 = string.find(sval,".",0)
+        var i2 = string.find(sval,".",i1+1)
+        var num = int(sval[0..i1-1])*10000+int(sval[i1+1..i2-1])*100+int(sval[i2+1..])
         return num
     end
 
